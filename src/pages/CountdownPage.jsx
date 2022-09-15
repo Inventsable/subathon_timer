@@ -1,59 +1,62 @@
 import React, { useState, useEffect } from "react";
 import { withRouter, useLocation, useHistory } from "react-router-dom";
-import io from "socket.io-client"
-import { Chat, ChatEvents } from 'twitch-js'
-import Countdown, {zeroPad} from 'react-countdown'
+import io from "socket.io-client";
+import { Chat, ChatEvents } from "twitch-js";
+import Countdown, { zeroPad } from "react-countdown";
+
+let tempData = "testing 1 2 3";
 
 function CountdownPage(props) {
   const location = useLocation();
   const history = useHistory();
   let defaultAdditionalTime;
   if (localStorage.totalTimeSeconds) {
-    defaultAdditionalTime = localStorage.totalTimeSeconds
+    defaultAdditionalTime = localStorage.totalTimeSeconds;
   } else {
-    defaultAdditionalTime = location.state.timeSeconds
+    defaultAdditionalTime = location.state.timeSeconds;
   }
   const [totalAdd, setTotalAdd] = useState(0);
-  const [targetDate, setTargetDate] = useState(Date.now() + defaultAdditionalTime * 1000 );
+  const [targetDate, setTargetDate] = useState(
+    Date.now() + defaultAdditionalTime * 1000
+  );
   const [socket, setSocket] = useState();
   const [startTime, setStartTime] = useState(targetDate);
   const color = location.state.Color;
 
   // implement queue to synchronously do async tasks
-  const [queue, setQueue] = useState({isProcessing: false, tasks: []})
+  const [queue, setQueue] = useState({ isProcessing: false, tasks: [] });
 
   useEffect(() => {
     // //console.log(queue.tasks);
     // //console.log("IM IN THE QUEUE");
-    if (queue.tasks.length === 0) return
-    if (queue.isProcessing) return
+    if (queue.tasks.length === 0) return;
+    if (queue.isProcessing) return;
 
-    const task = queue.tasks[0]
+    const task = queue.tasks[0];
     setQueue((prev) => ({
       isProcessing: true,
       tasks: prev.tasks.slice(1),
-    }))
+    }));
 
     Promise.resolve(task)
-    .then((val) => {
-      //console.log("before:", targetDate);
-      //console.log("time to add:", val);
-      setTargetDate(targetDate + val*1000);
-      setTotalAdd(totalAdd + val);
-    })
-    .finally(() => {
-      setQueue((prev) => ({
-        isProcessing: false,
-        tasks: prev.tasks,
-      }))
-    })
-  }, [queue, queue.tasks, queue.isProcessing])
+      .then((val) => {
+        //console.log("before:", targetDate);
+        //console.log("time to add:", val);
+        setTargetDate(targetDate + val * 1000);
+        setTotalAdd(totalAdd + val);
+      })
+      .finally(() => {
+        setQueue((prev) => ({
+          isProcessing: false,
+          tasks: prev.tasks,
+        }));
+      });
+  }, [queue, queue.tasks, queue.isProcessing]);
 
-  
   const username = "justinfan20394";
   const token = "";
   const channel = location.state.ChannelName.toString().toLowerCase();
-  
+
   const [lastSub, setLastSub] = useState("");
   const [lastResub, setLastResub] = useState("");
   const [lastCheer, setLastCheer] = useState("");
@@ -62,7 +65,7 @@ function CountdownPage(props) {
   const twitchChat = new Chat({
     username,
     token,
-    log: { level: "warn" }
+    log: { level: "warn" },
   });
 
   const runTwitchChat = async () => {
@@ -97,21 +100,25 @@ function CountdownPage(props) {
     twitchChat.on("SUBSCRIPTION_GIFT_COMMUNITY", (message) => {
       if (message != lastSubGiftCommunity) {
         const msg = message.systemMessage || "";
-        const numGifts = message.parameters.massGiftCount
-        const subPlan = message.parameters.subPlan || ""
+        const numGifts = message.parameters.massGiftCount;
+        const subPlan = message.parameters.subPlan || "";
         //console.log("ADD: SUBSCRIPTION_GIFT_COMMUNITY",numGifts, subPlan, msg);
         setLastSubGiftCommunity(message);
         handleSubs(subPlan, numGifts);
       }
     });
-  
+
     await twitchChat.connect();
     await twitchChat.join(channel);
   };
 
-
-  const socketStreamlabs = io(`https://sockets.streamlabs.com?token=${location.state.Token}`, {transports: ["websocket"],})
-  const socketStreamElements = io(`https://realtime.streamelements.com`, { transports: ["websocket"] })
+  const socketStreamlabs = io(
+    `https://sockets.streamlabs.com?token=${location.state.Token}`,
+    { transports: ["websocket"] }
+  );
+  const socketStreamElements = io(`https://realtime.streamelements.com`, {
+    transports: ["websocket"],
+  });
 
   const runSocketStreamlabs = async () => {
     socketStreamlabs.on("connect", () => {
@@ -120,20 +127,24 @@ function CountdownPage(props) {
     });
 
     socketStreamlabs.on("event", (eventData) => {
-      if (eventData.type === "donation") {
+      // if (eventData.type === "donation") {
+      if (eventData.type === "tiltifydonation") {
+        // tempData = JSON.stringify(eventData);
         //code to handle donation events
-        var donoTime = Math.floor(eventData.message[0].amount) * location.state.donationsTime;
+        tempData = JSON.stringify(eventData.message);
+
+        var donoTime =
+          Math.floor(eventData.message[0].amount) *
+          location.state.donationsTime;
         //console.log("Dono streamlabs received: $", eventData.message[0].amount, "time to add:", donoTime);
-        setQueue(
-          (prev) => ({
-            isProcessing: prev.isProcessing,
-            tasks: prev.tasks.concat([donoTime]),
-          })
-        )
+        setQueue((prev) => ({
+          isProcessing: prev.isProcessing,
+          tasks: prev.tasks.concat([donoTime]),
+        }));
       }
     });
-  }
-  
+  };
+
   const runSocketStreamelements = async () => {
     //streamelements
     socketStreamElements.on("connect", () => {
@@ -155,7 +166,7 @@ function CountdownPage(props) {
 
     socketStreamElements.on("event", (data) => {
       if (lastSocketMessage != data) {
-        setLastSocketMessage(data)
+        setLastSocketMessage(data);
         handleStreamElementsEvents(data);
       }
     });
@@ -164,7 +175,6 @@ function CountdownPage(props) {
       handleStreamElementsEvents(data);
     });
   };
-  
 
   useEffect(() => {
     //console.log("channelconnected:", channel);
@@ -176,22 +186,23 @@ function CountdownPage(props) {
     } else if (location.state.Api == "2" && location.state.Token != "") {
       runSocketStreamelements();
     }
-  },[])
+  }, []);
 
   const handleBits = (bits) => {
     if (bits > 0) {
       // setTargetDate(targetDate + location.state.bitsTime );
-      setQueue(
-        (prev) => ({
-          isProcessing: prev.isProcessing,
-          tasks: prev.tasks.concat([location.state.bitsTime * Math.floor(bits/location.state.bitsAmount) ]),
-        })
-      )
+      setQueue((prev) => ({
+        isProcessing: prev.isProcessing,
+        tasks: prev.tasks.concat([
+          location.state.bitsTime *
+            Math.floor(bits / location.state.bitsAmount),
+        ]),
+      }));
       //console.log("check bits successfully added:", bits, "seconds added:", Math.floor(bits/500));
     } else {
       //console.log("bits ERROR", bits);
     }
-  }
+  };
 
   const handleSubs = (subType, subAmount) => {
     let addAmount = subAmount;
@@ -212,43 +223,48 @@ function CountdownPage(props) {
       default:
         //console.log("error add", subType, subAmount);
         break;
-      }
+    }
     if (addAmount >= 1) {
       // queue.tasks.concat(addAmount );
-      setQueue(
-        (prev) => ({
-          isProcessing: prev.isProcessing,
-          tasks: prev.tasks.concat([addAmount ]),
-        })
-      )
+      setQueue((prev) => ({
+        isProcessing: prev.isProcessing,
+        tasks: prev.tasks.concat([addAmount]),
+      }));
       // setTargetDate(targetDate + addAmount )
     }
     //console.log("check subs successfully added", subType, subAmount);
-  }
-  
+  };
+
   const handleStreamElementsEvents = (data) => {
     if (data.listener == "follower-latest") {
       clearInterval(intervalId);
-      setQueue(
-        (prev) => ({
-          isProcessing: prev.isProcessing,
-          tasks: prev.tasks.concat([location.state.FollowTime]),
-        })
-      )
+      setQueue((prev) => ({
+        isProcessing: prev.isProcessing,
+        tasks: prev.tasks.concat([location.state.FollowTime]),
+      }));
     } else if (data.listener == "tip-latest") {
       let amount = data.event.amount;
       //console.log("Dono streamlabs received: $", amount);
-      setQueue(
-        (prev) => ({
-          isProcessing: prev.isProcessing,
-          tasks: prev.tasks.concat([Math.floor(amount)*location.state.donationsTime]),
-        })
-      )
+      setQueue((prev) => ({
+        isProcessing: prev.isProcessing,
+        tasks: prev.tasks.concat([
+          Math.floor(amount) * location.state.donationsTime,
+        ]),
+      }));
     }
   };
 
-  const Completionist = () => <span style={{color: `${location.state.Color}`,fontSize: `${location.state.FontSize}px`,}}>GG GO NEXT</span>;
-  
+  const Completionist = () => (
+    <span
+      style={{
+        color: `${location.state.Color}`,
+        fontSize: `${location.state.FontSize}px`,
+      }}
+    >
+      GG GO NEXT
+    </span>
+  );
+
   // Renderer callback with condition
   const renderer = ({ days, hours, minutes, seconds, completed }) => {
     if (completed) {
@@ -257,36 +273,41 @@ function CountdownPage(props) {
     } else {
       // Render a countdown
       //console.log("current target check: ",targetDate, "total add:", totalAdd)
-      if (startTime + totalAdd*1000 != targetDate) {
+      if (startTime + totalAdd * 1000 != targetDate) {
         //console.log("ERROR: ", startTime + totalAdd, targetDate, "DO NOT MATCH")
       }
       // //console.log(hours + days*24, minutes, seconds);
-      localStorage.setItem('totalTimeSeconds', ((days * 24 + hours) * 60 + minutes) * 60 + seconds);
-      return <span>{zeroPad(hours + days*24)}:{zeroPad(minutes)}:{zeroPad(seconds)}</span>;
+      localStorage.setItem(
+        "totalTimeSeconds",
+        ((days * 24 + hours) * 60 + minutes) * 60 + seconds
+      );
+      return (
+        <span>
+          {zeroPad(hours + days * 24)}:{zeroPad(minutes)}:{zeroPad(seconds)}
+        </span>
+      );
     }
   };
 
-  const handleClick=()=> {
+  const handleClick = () => {
     //console.log("button pressed");
     //console.log(queue);
-    setQueue(
-      (prev) => ({
-        isProcessing: prev.isProcessing,
-        tasks: prev.tasks.concat([60]),
-      })
-    )
+    setQueue((prev) => ({
+      isProcessing: prev.isProcessing,
+      tasks: prev.tasks.concat([60]),
+    }));
     //console.log(queue);
-  }
+  };
 
   const handleClickBack = () => {
     //console.log(totalAdd);
     disconnectAllServices();
     history.goBack();
-  }
+  };
 
   const onComplete = () => {
     disconnectAllServices();
-  }
+  };
 
   const disconnectAllServices = () => {
     twitchChat.disconnect();
@@ -299,25 +320,34 @@ function CountdownPage(props) {
       //console.log("streamelements socket disconneted");
       socketStreamlabs.disconnect();
     }
-  }
+  };
 
   return (
-    <div>
+    <div
+      style={{
+        flexWrap: "nowrap",
+        color: `#fff`,
+        wordBreak: "break-all",
+        fontSize: `42px`,
+      }}
+    >
       <span
-          onClick={handleClickBack}
-          style={{
-            color: `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`,
-            fontFamily: `${location.state.FontType}`,
-            fontSize: `${location.state.FontSize}px`,
-          }}
-        >
-          <Countdown
-            autoStart = {true}
-            date = {targetDate}
-            renderer = {renderer}
-            onComplete = {onComplete}
-          />
+        onClick={handleClickBack}
+        style={{
+          color: `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`,
+          fontFamily: `${location.state.FontType}`,
+          fontSize: `${location.state.FontSize}px`,
+        }}
+      >
+        <Countdown
+          autoStart={true}
+          date={targetDate}
+          renderer={renderer}
+          onComplete={onComplete}
+        />
       </span>
+      <br />
+      <span>{tempData}</span>
       {/* <button
           className="bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring focus:ring-sky-400 active:bg-sky-700 px-4 py-2 text-xm leading-5 rounded-md font-semibold text-white"
           style={{ display: "block" }}
