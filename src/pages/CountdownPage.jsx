@@ -131,7 +131,7 @@ function CountdownPage(props) {
       if (eventData.type === "tiltifydonation") {
         // tempData = JSON.stringify(eventData);
         //code to handle donation events
-        tempData = JSON.stringify(eventData.message);
+        // tempData = JSON.stringify(eventData.message);
 
         var donoTime =
           Math.floor(eventData.message[0].amount) *
@@ -323,14 +323,7 @@ function CountdownPage(props) {
   };
 
   return (
-    <div
-      style={{
-        flexWrap: "nowrap",
-        color: `#fff`,
-        wordBreak: "break-all",
-        fontSize: `42px`,
-      }}
-    >
+    <div>
       <span
         onClick={handleClickBack}
         style={{
@@ -346,8 +339,6 @@ function CountdownPage(props) {
           onComplete={onComplete}
         />
       </span>
-      <br />
-      <span>{tempData}</span>
       {/* <button
           className="bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring focus:ring-sky-400 active:bg-sky-700 px-4 py-2 text-xm leading-5 rounded-md font-semibold text-white"
           style={{ display: "block" }}
